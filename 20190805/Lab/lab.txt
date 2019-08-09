@@ -1,0 +1,9 @@
+下午开会
+
+下一步计划
+1、扩展卡尔曼滤波定位算法 Python 看懂
+2、RGBD
+3、TCP/UDP
+4、梯形加减速
+5、Python robotics readme
+7、RFID了解
