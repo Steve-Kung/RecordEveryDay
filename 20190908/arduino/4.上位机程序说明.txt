@@ -1,0 +1,77 @@
+// 上位机程序
+/*
+介绍上位机树莓派及相关软件包的安装及运行
+ros_arduino_bridge安装
+	假设上位机已安装ROS indigo版本，并创建了用户的ROS项目空间~/catkin_ws。
+		源码安装方法:
+		cd ~/catkin_ws/src
+		git clone https://github.com/hbrobotics/ros_arduino_bridge.git 
+		cd ros_arduino_bridge
+		git checkout indigo-devel
+		cd ~/catkin_ws
+		catkin_make --pkg ros_arduino_bridge
+		source ~/.bashrc
+创建一个配置文件：
+	~/catkin_ws/src/ros_arduino_bridge/ros_arduino_python/config/my_arduino_params.yaml
+		my_arduino_params.yaml源码：
+		见文件
+teleop-twist-keyboard安装
+	通过键盘控制软件包
+	在树莓派终端或工作机安装命令：
+	sudo apt-get install ros-indigo-teleop-twist-keyboard
+运行程序
+	树莓派新终端执行：
+	roslaunch ros_arduino_python arduino.launch
+	树莓派或工作机执行：
+	rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+	如果是树莓派执行需要连接键盘
+	利用键盘，根据提示的键值，就可以控制小车前后左右移动了
+	键盘说明：
+	Moving around:
+	   u    i    o
+	   j    k    l
+	   m    ,    .
+
+	q/z : increase/decrease max speeds by 10%
+	w/x : increase/decrease only linear speed by 10%
+	e/c : increase/decrease only angular speed by 10%
+	u 前左转，i 前进，o前右转，j 逆时针转，l顺时针转，','后退，'.' 后左转，m后右转
+
+	q/z:增速/减速
+
+	键值定义：
+
+	moveBindings = {
+	'i':(1,0,0,0),
+	'o':(1,0,0,-1),
+	'j':(0,0,0,1),
+	'l':(0,0,0,-1),
+	'u':(1,0,0,1),
+	',':(-1,0,0,0),
+	'.':(-1,0,0,1),
+	'm':(-1,0,0,-1),
+	'O':(1,-1,0,0),
+	'I':(1,0,0,0),
+	'J':(0,1,0,0),
+	'L':(0,-1,0,0),
+	'U':(1,1,0,0),
+	'<':(-1,0,0,0),
+	'>':(-1,-1,0,0),
+	'M':(-1,1,0,0),
+	't':(0,0,1,0),
+	'b':(0,0,-1,0),
+	}
+
+	speedBindings={
+	'q':(1.1,1.1),
+	'z':(.9,.9),
+	'w':(1.1,1),
+	'x':(.9,1),
+	'e':(1,1.1),
+	'c':(1,.9),
+	}
+
+	'i':(x,y,z,th) x轴线速，y轴为0，z轴为0，th角速
+
+	moveBindings大写字母部分代表全向轮使用
+*/

@@ -1,0 +1,94 @@
+// 5.校准
+/*
+如果小车速度不稳定，通过校准PID来改进
+问题:
+	如果发现小车速度互快互慢，或者走不了直线，那是因为PID参数给的不合理造成的。
+	PID的目的是通过改变电机PWM值，使电机实际的转速基本等于期望的转速。
+	如果参数不合理，就会出现实际的转速和期望的转速相差很远。
+	也就是说，我们没办法精准控制小车。
+校准方法：
+	把电机PWM值、期望的转速和实际的转速这三者的值用图表实时地描绘出来。
+	根据PWM值和实际的转速的运动轨迹，不停地修改PID的参数，让期望的转速和实际的转速能在很短时间内的达到一致。
+	调节顺序，先调P,再调I，最后调D，通常只需要P和I两个参数就可以了。
+程序更改:
+	电机PWM值、期望的转速和实际的转速图表实时展示的方法
+	修改文件~/catkin_ws/src/ros_arduino_bridge/ros_arduino_python/src/ros_arduino_python/arduino_driver.py
+	找到class Arduino，在下面添加如下代码：
+		def get_pidin(self):
+			values = self.execute_array('i')
+			if len(values) != 2:
+				print "get_pidin count was not 2"
+				raise SerialException
+				return None
+			else:
+				return values
+
+		def get_pidout(self):
+			values = self.execute_array('f')
+			if len(values) != 2:
+				print "get_pidout count was not 2"
+				raise SerialException
+				return None
+			else:
+				return values
+	修改文件:
+	~/catkin_ws/src/ros_arduino_bridge/ros_arduino_python/src/ros_arduino_python/base_controller.py中有四处需要修改。
+		在from tf.broadcaster import TransformBroadcaster下面增加
+			from std_msgs.msg import Int32
+		self.odomPub = rospy.Publisher(‘odom’, Odometry) 上面添加如下内容：
+			self.lEncoderPub = rospy.Publisher('Lencoder', Int32)
+			self.rEncoderPub = rospy.Publisher('Rencoder', Int32)
+			self.lPidoutPub = rospy.Publisher('Lpidout', Int32)
+			self.rPidoutPub = rospy.Publisher('Rpidout', Int32)
+			self.lVelPub = rospy.Publisher('Lvel', Int32)
+			self.rVelPub = rospy.Publisher('Rvel', Int32)
+		在poll(self)函数的，if now > self.t_next: 下添加
+			try:
+				left_pidin, right_pidin = self.arduino.get_pidin()
+			except:
+				rospy.logerr("getpidout exception count: ")
+				return
+
+			self.lEncoderPub.publish(left_pidin)
+			self.rEncoderPub.publish(right_pidin)
+			try:
+				left_pidout, right_pidout = self.arduino.get_pidout()
+			except:
+				rospy.logerr("getpidout exception count: ")
+				return
+			self.lPidoutPub.publish(left_pidout)
+			self.rPidoutPub.publish(right_pidout)
+		在poll(self)函数的，if not self.stopped: 下添加：
+			self.lVelPub.publish(self.v_left)
+			self.rVelPub.publish(self.v_right)
+运行程序:
+	在树莓派终端执行命令：
+		$roslaunch ros_arduino_python arduino.launch
+	在树莓派新终端执行命令：
+		$rqt_plot /Lencoder /Lpidout /Lvel 
+	在树莓派新终端执行命令：
+		$rostopic pub -r 30  /cmd_vel geometry_msgs/Twist '{linear: {x: 0.3, y: 0, z: 0}, angular: {x: 0, y: 0, z: 0}}'
+		小车以0.3m/s固定线速度运行。图表中/Lvel/data代表左轮期望转速（以编码器的计数器数目表示），
+		/Lencoder/data代表左轮实际的转速，/Lpidout/data 代表电机PWM值。右轮的三个值分别是/Rvel、/Rencoder和/Rpidout。
+	我们可以改变不同的速度，调整并检查PID效果。
+PID调节口诀:
+	口诀1：
+		参数整定寻最佳，从大到小顺次查。
+		先是比例后积分，最后再把微分加。
+		曲线振荡很频繁，比例度盘要放大。
+		曲线漂浮绕大弯，比例度盘往小扳。
+		曲线偏离回复慢，积分时间往下降。
+		曲线波动周期长，积分时间再加长。 
+		理想曲线两个波，调节过程高质量。
+	口诀2：
+		参数整定找最佳，从小到大顺序查
+		先是比例后积分，最后再把微分加
+		曲线振荡很频繁，比例度盘要放大
+		曲线漂浮绕大湾，比例度盘往小扳
+		曲线偏离回复慢，积分时间往下降
+		曲线波动周期长，积分时间再加长
+		曲线振荡频率快，先把微分降下来
+		动差大来波动慢。微分时间应加长
+		理想曲线两个波，前高后低4比1
+		一看二调多分析，调节质量不会低。
+*/

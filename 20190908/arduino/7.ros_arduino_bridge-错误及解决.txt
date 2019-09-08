@@ -1,0 +1,45 @@
+// ros_arduino_bridge-错误及解决
+/*
+介绍ros_arduino_bridge可能的相关错误及解决
+
+1.未能启动arduino_node节点
+	问题：在你使用roslaunch ros_arduino_python arduino.launch启动该节点之后，可能会遇到下面的错误：
+		ERROR: cannot launch node of type [ros_arduino_python/arduino_node.py]: can’t locate node [arduino_node.py] in package [ros_arduino_python].
+	原因及解决：产生这个错误的主要原因有两种：
+	你的电脑并未连接Arduino板，或者没有连接好，这时你就需要检查一下连接了；
+	如果连接完好，那么很可能就是你对文件arduino_node.py没有可执行的权限，所以只要使用命令chomd a+x arduino_node.py给它加上可执行权限就行了.
+2.未能确定Arduino的波特率
+	问题：
+		Connecting to Arduino on port /dev/ttyACM0 …
+		Failed to determine baud rate of Arduino so aborting!	
+	分析：
+		这个问题其实比较棘手。其实在启动之前你应该使用串口监视器对这个Arduino sketch进行测试的，如果没有问题的话在进行下一步的配置。笔者曾使用默认的baud rate(57600)，但是并不能从串口监视器读出正确的值，甚至什么也输不出来。我曾今尝试过修改代码中默认的波特率，但是代码的原作者却坚持认为不应该修改它，但是我将其修改成9600却成功地从串口监视器得到了预期的值。
+		可是我再次运行这个节点的时候，还是会出现这样的错误。最后该功能包的原作者给了我一个这样的答案：你用的那个分支（master）还在开发中，可能会存在问题，你可以尝试使用indigo-devel。其实这个答案让我很难接受，他并没有告诉我具体什么原因导致的这样的问题，而是以这样的一个理由来搪塞我。更好况，在github的惯例中，master分支应该是一个随时可以使用的稳定版，仓库管理者应该即时合并分支。不过，我也只好按照它的建议使用了另一个分支。果然，换了一个分支之后就不会出现这样的错误了。
+	解决方法：
+		首先测试Arduino sketch（即功能包里的ros_arduino_firmware文件夹里的代码）是否运行正常；
+		如果仍然出现这样的错误，那么就请检查你是用的那个分支是否与你的板子或电脑兼容
+3.命令执行错误
+	错误：
+		Connecting to Arduino on port /dev/ttyACM0 …
+		Serial Exception:
+		(<\class ‘serial.serialutil.SerialException’>, SerialException(), <\traceback object at 0x7fbc064c7c20)>
+		Traceback follows:
+		Traceback (most recent call last):
+		File “/home/bird/catkin_ws/src/ros_ab_indigo/ros_arduino_python/src/ros_arduino_python/arduino_driver.py”, line 75, in connect
+		raise SerialException
+		SerialException
+		Cannot connect to Arduino!
+		[arduino-1] process has died [pid 2849, exit code 1, cmd /home/bird/catkin_ws/src/ros_ab_indigo/ros_arduino_python/nodes/arduino_node.py __name:=arduino __log:=/home/bird/.ros/log/3945ca82-2e1e-11e6-abd3-00e04c7df3a3/arduino-1.log].
+		log file: /home/bird/.ros/log/3945ca82-2e1e-11e6-abd3-00e04c7df3a3/arduino-1*.log
+		all processes on machine have died, roslaunch will exit
+		shutting down processing monitor…
+		… shutting down processing monitor complete
+		done
+	如果你得到这样的错误，很可能就是因为从serial获取的输出结果有问题。你在Python脚本文件的相应位置输出获取的结果，你就会发现结果是错误的。但是究竟是什么原因导致这样的问题呢？直接原因就是串口的实际波特率与你所设置的波特率大小不一致。
+	这时你就需要检查一下你给arduino所设置的波特率是否和你的配置文件(my_arduino_params.yaml)中的波特率一致。笔者曾近犯过这样一个愚蠢的错误：arduino板已经被其他人用过，而我忘记了重新向arduino上传ros_arduino_firmware中的代码，结果就出现了上面的错误。
+	另外还有一个比较隐晦的原因，就是你同时启动了Arduino IDE的串口监视器，导致它和这个节点争夺serial，于是就造成了错误或者不完整的信息。当然，类似多个程序使用同一个串口的原因也会导致这样的错误。
+
+
+
+
+*/

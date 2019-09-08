@@ -1,0 +1,33 @@
+# my_arduino_params.yaml
+# 重要参数含义：
+# wheel_diameter : 小车轮子的直径
+# wheel_track：两个轮子的轮间距
+# encoder_resolution：编码器一圈的脉冲计数，如果是AB相 13*2*2 （13单圈脉冲数*上下沿*AB相）。
+# gear_reduction：减速比，比如1：30，这是设为1或30
+# 也有介绍encoder_resolution也有设置为13*2*2*30=1560和gear_reduction设为1，但转动时候左右轮差异不大.
+# 本人测试设置encoder_resolution： 52 和 gear_reduction：30，则是效果很好
+port: /dev/ttyACM0
+baud: 115200
+timeout: 0.1
+rate: 50
+sensorstate_rate: 10
+
+use_base_controller: True
+base_controller_rate: 10
+
+# For a robot that uses base_footprint, change base_frame to base_footprint
+base_frame: base_link
+
+# === Robot drivetrain parameters
+wheel_diameter: 0.15
+wheel_track: 0.287
+encoder_resolution: 1768 # from Pololu for 13*34*4 motors
+gear_reduction: 1.0
+motors_reversed: False
+
+# === PID parameters
+Kp: 10
+Kd: 12
+Ki: 0
+Ko: 50
+accel_limit: 1.0
