@@ -1,0 +1,252 @@
+// ros_arduino_bridge功能包的使用
+/*
+介绍ros_arduino_bridge功能包
+
+ROSArduinoBridge
+	这个ROS功能包集包括了Arduino库（ROSArduinoBridge）和一系列用来控制基于Arduino的ROS功能包，
+	它使用的是标准的ROS消息和服务。这个功能包集并不依赖于ROS串口
+	使用这个功能包时，注意选择相应的版本，因为不同的版本之间有些并不能兼容。
+	indigo-devel branch是针对ROS Indigo以及更高版本的，它使用的是Catkin编译系统。
+	这个功能包集包括一个兼容不同驱动的机器人的基本控制器（base controller），
+	它可以接收ROS Twist类型的消息，可以发布里程数据到个人电脑。
+	这个控制器（base controller）要求使用一个电机控制器和编码器来读取里程数据
+特点
+	可以直接支持ping声呐和Sharp红外线传感器
+	也可以从通用的模拟和数字信号的传感器读取数据
+	可以控制数字信号的输出
+	支持PWM伺服机
+	如果使用所要求的硬件的话，可以配置基本的控制
+	如果你的Arduino编程基础好的话，并且具有python基础的话，你就可以很自由的改动代码来满足你的硬件要求
+	目前indigo-devel版本的功能包集支持下面的控制器硬件
+	Pololu VNH5019 dual motor controller shield or Pololu MC33926 dual motor shield.
+	Robogaia Mega Encoder shield or on-board wheel encoder counters.
+注意：
+	Robogaia Mega Encoder shield 仅适用于Arduino Mega，
+	板上编码计数器(ARDUINO_ENC_COUNTER)目前仅支持Arduino Uno
+	上面非硬性规定，有一定的编程基础，你也可以按需更改
+系统要求：
+	1.安装python-serial功能包（Ubuntu）
+		介绍：
+		这个功能包集可以在兼容Arduino的控制器上进行读取传感器上的数据，
+		以及控制PWM伺服机。但是你必须具备上面所说的被支持的硬件（电动机控制器和编码器），
+		你才能使用这个功能包集中的基本控制器（base controller）
+		安装：
+		$ sudo apt-get install python-serial 或
+		$ sudo pip install --upgrade pyserial 或
+		$ sudo easy_install -U pyserial
+	2.安装电动机控制器和编码器合适的库
+	这些库应该被安装到你的标准Arduino sketchbook/libraries路径下面
+Linux下连接Arduino
+	1.Arduino很可能是通过接口/dev/ttyACM# 或者 /dev/ttyUSB#来连接你的Linux系统的。
+	这里的#可以是0,1,2等数字，当然这根据你连接的设备数量而定。
+	得到这个数字#最简单的方式就是拔掉所有的USB设备，
+	然后插上你的Arduino，然后运行下面这个命令
+		$ ls /dev/ttyACM* 或
+		$ ls /dev/ttyUSB*
+	2.上面这两个命令的有一个可以返回你想要的结果（例如/dev/ttyACM0），
+	假设你的Arduino连接的是/dev/ttyACM0
+	3.查看接口的访问权限
+		$ ls -l /dev/ttyACM0 crw-rw—- 1 root dialout 166, 0 2013-02-24 08:31 /dev/ttyACM0
+		上面的结果中，只有root和”dialout”组才有读写权限
+		你需要成为dialout组的一个成员。你仅仅需要马上加入这组中，
+		并且它会对你之后插入的所有的USB设备都起作用。
+	4.运行这个命令来加入dialout组
+		$ sudo usermod -a -G dialout your_user_name
+		命令中your_user_name就是你在Linux下登录的用户名。之后你可能需要注销登录，
+		然后再重新登录进去，或者就简单的重启一下电脑
+		确认已经成功让用户加入组，如果你可以在列出的组中找到dialout，
+		这就说明你已经加入到dialout中了
+		$ groups
+安装ros_arduino_bridge功能包集
+	1.安装ros_arduino_bridge
+		$ cd ~/catkin_workspace/src
+		$ git clone https://github.com/hbrobotics/ros_arduino_bridge.git
+		$ cd ~/catkin_workspace
+		$ catkin_make
+	这个被提供的Arduino库叫做ROSArduinoBridge，你可以在 ros_arduino_firmware功能包中找到
+	2.安装ROSArduinoBridge库：
+		进入SKETCHBOOK_PATH是指你的Arduino sketchbook路径
+			$ cd SKETCHBOOK_PATH 
+		CP命令就是把ROSArduinoBridge sketch文件拷贝到你的sketchbook文件夹下面
+			$ cp -rp `rospack find ros_arduino_firmware`/src/libraries/ROSArduinoBridge ROSArduinoBridge
+		如果之前已经有先删除
+			$ cd SKETCHBOOK_PATH
+			$ rm -R ROSArduinoBridge
+	3.编译上传ROSArduinoBridge的Sketch
+	打开Arduino IDE找到File->Sketchbook->ROSArduinoBridge
+	如果你正在使用基础控制器功能包（base controller），
+	那么你必须确保你已经在Arduino sketchbook/libraries文件夹里面安装了合适的电动机控制器和编码器的相关库
+	你可以通过去掉或保留相关的宏定义声明，来选择你想用的电动机控制器，
+	同时你还要将其他电动机控制器的宏声明注释掉,默认选择的是Pololu VNH5019 driver
+	你也可以用相同的方法选择你想使用的编码器。默认选择的是Pololu VNH5019 driver
+	想让你的基础控制器控制PWM伺服机的话,找到代码行：
+		//#define USE_SERVOS
+		#undef USE_SERVOS
+	更改为：
+		#define USE_SERVOS
+		//#undef USE_SERVOS
+	修改头文件servos.h改变其中的N_SERVOS参数，
+	你还需要根据你的伺服机所接的引脚修改相应的引脚数字
+	一切都准备好后，你就可以把这个sketch编译并上传到你的Arduino板子
+固件测试：
+	1.串口监视器
+		这个ROSArduino库接受单字母命令来轮询传感器、控制伺服机、驱动机器人以及读取编码器。
+		这些命令可以通过串口接口来发送给Arduino，比如Arduino的串口监视器
+		把串口监视器的波特率设置为57600然后把行结束符设置为“Carriage return（回车）”和“Both NL & CR”（NL和CR）。
+		这些设置选项在串口监视器右下角的两个下拉菜单中。如下图所示：	
+	2.目前的列表包括这些命令(命令列表可以在头文件commands.h中找到)
+		#define ANALOG_READ    'a'
+		#define GET_BAUDRATE   'b'
+		#define PIN_MODE       'c'
+		#define DIGITAL_READ   'd'
+		#define READ_ENCODERS  'e'
+		#define MOTOR_SPEEDS   'm'
+		#define PING           'p'
+		#define RESET_ENCODERS 'r'
+		#define SERVO_WRITE    's'
+		#define SERVO_READ     't'
+		#define UPDATE_PID     'u'
+		#define DIGITAL_WRITE  'w'
+		#define ANALOG_WRITE   'x'
+	3.命令使用例子
+		如果你想从模拟引脚pin3读取数据，就发送这个命令： a 3
+		你想改变数字引脚pin3的模式为OUTPUT，就发送这个命令： c 3 1
+		得到目前编码器的计数，就发送这个命令：e
+		让机器人以每秒20个encoder ticks的速度向前移动，就发送这个命令：m 20 20
+		这些命令有些需要有对应的参数，比如a 3中3代表模拟引脚3
+连线测试:
+	在一个差速轮式机器人上，电动机使用两个极性相反的接头来连接到电动机控制器上的
+
+	同样地，连接到编码器上的A/B端也是互斥的。然而，你仍然需要确保这样两个要求：
+
+	当给一个正向的速度，轮子向前移动；
+	而当轮子向前移动时，编码器计数增加。
+	把机器人的轮子架空，你可以使用串口监视器来测试上述的两个要求。
+
+	你可以使用m命令来启动电动机，使用e命令来获取编码器计数，以及使用r命令来将编码器重置为0
+
+	在固件层，电动机的速度是按照编码器每秒的tick数来表示的，这样可以使编码器很容易解析（理解）它
+
+	假如轮子转速是每秒4000个编码器计数，那么命令m 20 20会以一个非常小的速度移动小车。
+	（默认设置轮子仅仅移动2秒，你可以通过修改源码中的AUTO_STOP_INTERVAL改变这个值），第一个参数是左轮的速度，另一个参数是右轮的速度。
+
+	当使用e命令时，第一个被返回的数是左轮的编码器计数，第二个数是右轮的编码器计数。
+
+	可以先使用r命令把编码器计数清零，然后通过手动粗略地旋转轮子一整圈，再通过e命令来验证获取到的编码器计数是否为预期的结果
+	
+配置ros_arduino_python节点:
+	1.编辑ros_arduino_python/config路径下的YAML文件定义的机器人尺寸，PID参数，以及传感器配置信息
+		$ roscd ros_arduino_python/config
+		$ cp arduino_params.yaml my_arduino_params.yaml #复制一个副本
+		$ vim my_arduino_params.yaml #查看内容
+	2.my_arduino_params.yaml代码
+		不要在你的.yaml文件里使用tab，否则的话这个语法解析器会无法加载它。如果你要缩进的话必须用空格代替tab键
+		当定义你的传感器参数时，列表中的最后一个传感器的行尾（花括号后面）后没有逗号，但是其余的行尾必须有逗号。
+	3.解释代码
+	接口设置
+		接口要么是/dev/ttyACM0，要么是/dev/ttyUSB0，视情况而定
+		其中MegaRobogaiaPololu的Arudino sketch默认是以57600的波特率连接的。
+	轮询速率
+		跳出ROS loop运行的速率主要就取决于这个速率参数（默认为50Hz），这个默认值足以满足大多数情况。
+		在任何情况下，它应该至少与你的传感器的最大速率（下面我们会说到）一样快才行
+		sensorstate_rate决定了多久发布一个所有传感器的集合列表，每个传感器也以各自的速率在各自的主题上发布消息。
+		use_base_controller参数默认为False。你可以把它设置为True（假设你有文中所要求的硬件设施）。
+		设置PID参数base_controller_rate参数决定了多久发布一次里程计读取信息。
+	定义传感器
+		sensors参数按照定义了传感器的名字和参数的字典（可任意指定，传感器的名字也会成为那个传感器所对应主题的名字）
+		四个最重要的参数分别是：pin，type，rate，direction。
+		rate定义了你每秒想轮询一次那个传感器多少次。
+		例如，一个电压传感器可能每秒仅仅被轮询一次（或者仅仅每两秒一次），而一个声呐传感器可能每秒被轮询20次。
+		type必须是列表中被列出来的（注意区分大小写！）。
+		direction默认是input，所以如果你想将它定义为output，就将这个direction单独设为output。
+		在上面的例子中，Arduino LED（pin13）将会以每秒两次的速率被点亮或熄灭。
+	设置Drivetrain（驱动系统）和PID参数
+		为了使用基础控制器（base controller），你必须去掉它的注释并且设置机器人的drivetrain和PID参数
+		示例中drivetrain参数是直径6英寸的驱动轮，距离11.5英寸
+		注意在ROS中使用米作为距离单位，所以一定要换算单位
+		示例中的编码器的分辨率（每转的tick数）规格来自于Pololu 131:1电动机。为你的电动机/编码器组合设置合理的数值
+		如果你的轮子可以向后转，那么就把motors_reversed设置为true，否则的话就设置为False
+		PID参数比较难设置，你可以先按照示例中的值设置。但是在你第一次发送转弯命令的时候，架空小车测试。
+启动ros_arduino_python节点
+	1.查看ros_arduino_python/launch下的文件arduino.launch，它指向一个名叫my_arduino_params.yaml的文件
+		<launch>
+		   <node name="arduino" pkg="ros_arduino_python" type="arduino_node.py" output="screen" clear_params="true">
+			  <rosparam file="$(find ros_arduino_python)/config/my_arduino_params.yaml" command="load" />
+		   </node>
+		</launch>
+			如果你的配置文件命名不同，那么就把这里的文件名参数(my_arduino_params.yaml)修改成你的配置文件的名字
+	2.连接好Arduino, 关闭串口监视器，启动 ros_arduino_python node节点
+		$ roslaunch ros_arduino_python arduino.launch
+			启动之前，千万不要打开Arduino IDE 的串口监视器，因为串口监视器会与该节点争夺串口资源
+			出现效果：
+				process[arduino-1]: started with pid [6098]
+				Connecting to Arduino on port /dev/ttyUSB0 …
+				Connected at 57600
+				Arduino is ready.
+				[INFO] [WallTime: 1355498525.954491] Connected to Arduino on port / > dev/ttyUSB0 at 57600 baud
+				[INFO] [WallTime: 1355498525.966825] motor_current_right {‘rate’: 5, > ‘type’: ‘PololuMotorCurrent’, ‘pin’: 1}
+				[INFO]
+				etc
+			如果你在你的机器人上装的有Ping声呐而且你也在配置文件里面定义了它们，它们就会闪一下来告诉你已经连接成功
+查看传感器数据
+	1.查看所有传感器的数据
+		$ rostopic echo /arduino/sensor_state
+	2.查看任何指定的传感器数据
+		$ rostopic echo /arduino/sensor/sensor_name
+			例如：有一个叫做ir_front_center的传感器，查看相应的数据
+			$ rostopic echo /arduino/sensor/ir_front_center
+	3.使用rxqrt来将这系列数据用图像的形式表示出来
+		$ rxplot -p 60 /arduino/sensor/ir_front_center/range
+发送Twist命令与查看里程计数据
+	1.把你的机器人放到块上使轮子悬空，然后发布一个Twist命令
+		$ rostopic pub -1 /cmd_vel geometry_msgs/Twist '{ angular: {z: 0.5} }'
+			两个轮子的转动方向应该是一致的，都是逆时针转动(右轮前进，左轮后退)。如果它们转动方向相反，那么就将motors_reversed 参数改为与之前相反的值，然后用ctrl+c 停止该节点，然后重新启动arduino.launch文件。
+	2.使用下面的命令可以使机器人停止
+		$ rostopic pub -1 /cmd_vel geometry_msgs/Twist '{}'
+	3.查看里程数据可以运行
+		$ rostopic echo /odom
+			或者使用图形界面显示：
+			$ rxplot -p 60 /odom/pose/pose/position/x:y, /odom/twist/twist/linear/x, /odom/twist/twist/angular/z
+ROS服务
+	1.digital_set_direction-设置数字引脚的方向
+		$ rosservice call /arduino/digital_set_direction pin direction
+			这里pin是引脚数字，direction为0代表输入，1代表输出。
+	2.digital_write-给数字引脚发送高低电平（LOW为0，HIGH为1）
+		$ rosservice call /arduino/digital_write pin value
+			同样，这里pin是引脚数字，value是电平高低（LOW为0，HIGH为1）。
+	3.servo_write-设置伺服机位置
+		$ rosservice call /arduino/servo_write id pos
+			这里id是伺服机的索引号（定义在Arduino sketch中的servos.h）并且pos是以弧度为单位（0-3.14），头文件servos.h中具体是这样写的：
+				byte servoInitPosition [N_SERVOS] = { 90, 90 }; // [0, 180] degrees
+	4.servo_read -读取伺服机的位置
+		$ rosservice call /arduino/servo_read id
+使用板上编码器计数（仅支持ArduinoUno）
+	对于Arduino Uno，这个固件程序支持板上的编码器计数。这样的话，编码器就直接可以连接到Arduino板上，
+	而不用借助任何额外的编码器设备（例如RoboGaia encoder shield）
+	对于速度，这个代码可以直接找到Atmega328p的接口和中断管脚，而这一功能的实现必须依赖Atmega328p（Arduino Uno）。
+	（尽管它也可能兼容其他电路板或AVR单片机芯片）
+	为了使用这个板上编码器计数，按照下面的要求来将编码器连接到Arduino Uno：
+		Left wheel encoder A output -- Arduino UNO pin 2
+		Left wheel encoder B output -- Arduino UNO pin 3
+		Right wheel encoder A output -- Arduino UNO pin A4
+		Right wheel encoder B output -- Arduino UNO pin A5
+	这时你需要在Arduino sketch中做相应的修改，通过下面的方式来取消使用RoboGaia encoder shield的代码，启用板上编码器的代码。
+		/* The RoboGaia encoder shield */
+		//#define ROBOGAIA
+		/* Encoders directly attached to Arduino board */
+		#define ARDUINO_ENC_COUNTER
+			这时你就可以编译并上传到Arduino上了。
+补充
+	如果你没有文档中所要求的硬件来运行这个基础控制器，
+	但是你仍然想使用其他兼容Arduino的控制器来读取传感器以及控制PWM伺服机，那么请按照下面的步骤：
+	首先，你需要编辑你的ROSArduinoBridge sketch，在文件的最前面，将这两行：
+		#define USE_BASE
+		//#undef USE_BASE
+	改成这样:
+		//#define USE_BASE
+		#undef USE_BASE
+	你还需要将文件encoder_driver.ino中的这一行注释掉：
+		#include "MegaEncoderCounter.h"
+	你就可以编译并上传你的代码
+	然后，编辑你的 my_arduino_params.yaml文件，确保参数use_base_controller被设为False。这样你就完成了
+*/

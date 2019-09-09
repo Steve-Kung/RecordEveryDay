@@ -1,0 +1,134 @@
+// 9.ros_arduino_python介绍
+/*
+说明：
+	介绍ros_arduino_python包相关功能
+	这个包包括一个Python驱动程序和ROS节点，用于Arduino兼容的控制器。
+	Arduino必须使用USB端口或RF串行链路（例如XBee）连接到PC或SBC。
+特征
+	直接支持以下传感器：
+		Ping sonar
+		Sharp infrared (GP2D12)夏普红外（GP2D12）
+		Onboard Pololu motor controller current板载Pololu电机控制器电流
+		Phidgets Voltage sensorPhidg​​ets电压传感器
+		Phidgets Current sensor (DC, 20A)Phidg​​ets电流传感器（DC，20A）
+	还可以从通用模拟和数字传感器读取数据
+	可以控制数字输出（例如打开和关闭开关或LED）
+	支持PWM伺服
+	如果使用所需的硬件，可配置基本控制器。
+Arduino节点
+arduino-node.py
+	用于Arduino兼容微控制器的ROS节点。
+	传感器可以以独立的速率轮询（参见本页末尾的示例配置文件）。
+	例如，主电压可以以1Hz的频率轮询，而声纳传感器可以以20Hz的速度轮询。
+订阅主题
+	/cmd_vel (geometry_msgs/Twist)，基本控制器的移动命令
+发布主题
+	/odom (nav_msgs/Odometry)，来自基本控制器的Odometry消息。
+	~sensor_state (ros_arduino_msgs/SensorState)，传感器名称和值的数组。
+	~sensor/name (sensor_msgs/Range,)，每个传感器值都在相应类型的“sensor”命名空间下的自己的主题上发布。
+服务
+	~servo_write (ros_arduino_msgs/ServoWrite),将索引为'id'的伺服器的目标位置设置为'value'（以弧度表示）。
+												'id'到引脚映射是在Arduino固件中进行的。
+	~servo_read (ros_arduino_msgs/ServoRead),从具有索引“id”的伺服获取最后设置的位置（以弧度表示）。
+	~digital_set_direction (ros_arduino_msgs/DigitalSetDirection),将数字引脚设置为INPUT（0）或OUTPUT（1）
+	~digital_write (ros_arduino_msgs/DigitalWrite),将数字引脚设置为低（0）或高（1）
+参数
+	~port (str, default: /dev/ttyUSB0 -- some controllers use /dev/ttyACM0),串行端口
+	~baud (int, default: 57600),串行连接的波特率。
+	~timeout (float, default: 0.1),串口超时（秒）
+	~rate (int, default: 50),速率运行主控制循环。应至少与更快的传感器速率一样快。
+	~sensorstate_rate (int, default: 10),发布传感器数据的频率。各个传感器是按照自己的话题和自己的速度发布的。
+	~use_base_controller (bool, default: False),是否使用基本控制器。
+	~base_controller_rate (int, default: 10),发布odometry数据的频率
+	~base_frame (New in Hydro) (string, default: base_link),接受odometry数据的坐标系
+	~wheel_diameter (float, default: none)，车轮直径（米）
+	~wheel_track (float, default: none)，轮距（米）。（驱动轮中心之间的距离）
+	~encoder_resolution (int, default: none)，每圈的编码器分辨率。
+	~gear_reduction (float, default: 1.0)，减速比
+	~motors_reversed (bool, default: False)，反转车轮旋转方向
+	~Kp (int, default: 20)，PID参数：比例
+	~Kd (int, default: 12)，PID参数：微分
+	~Ki (int, default: 0)， PID参数：积分
+	~Ko (int, default: 50)，PID参数：输出
+	~accel_limit (float, default: 0.1)，轮速变化最大的加速度
+	~sensors (dict, default: None)，附加到Arduino的传感器字典
+提供tf转换
+	odom → base_link ， 导航需要的变换
+配置
+	Arduino节点使用指定所需参数的YAML文件进行配置。
+	名为arduino_params.yaml的示例参数文件包含在config目录中，如下所示。
+	在编辑之前制作此文件的副本（例如my_arduino_params.yaml）。
+	注意，许多参数被注释掉，必须设置和取消注释，然后才能将该节点与Arduino配合使用。
+	当前有效的传感器类型名称（区分大小写）：
+		Ping
+		GP2D12
+		Analog (generic)
+		Digital (generic)
+		PololuMotorCurrent
+		PhidgetsVoltage
+		PhidgetsCurrent (20 amps, DC)
+	配置文件内容：
+		port: /dev/ttyUSB0
+		baud: 57600
+		timeout: 0.1
+
+		rate: 50
+		sensorstate_rate: 10
+
+		use_base_controller: False
+		base_controller_rate: 10
+
+		# === Robot drivetrain parameters
+		#wheel_diameter: 0.146
+		#wheel_track: 0.2969
+		#encoder_resolution: 8384 # from Pololu for 131:1 motors
+		#gear_reduction: 1.0
+		#motors_reversed: True
+
+		# === PID parameters
+		#Kp: 20
+		#Kd: 12
+		#Ki: 0
+		#Ko: 50
+		#accel_limit: 1.0
+
+		# === Sensor definitions.  Examples only - edit for your robot.
+		#     Sensor type can be one of the follow (case sensitive!):
+		#         * Ping
+		#         * GP2D12
+		#         * Analog
+		#         * Digital
+		#         * PololuMotorCurrent
+		#         * PhidgetsVoltage
+		#         * PhidgetsCurrent (20 Amp, DC)
+
+		sensors: {
+		  #motor_current_left:   {pin: 0, type: PololuMotorCurrent, rate: 5},
+		  #motor_current_right:  {pin: 1, type: PololuMotorCurrent, rate: 5},
+		  #ir_front_center:      {pin: 2, type: GP2D12, rate: 10},
+		  #sonar_front_center:   {pin: 5, type: Ping, rate: 10},
+		  arduino_led:          {pin: 13, type: Digital, rate: 5, direction: output}
+		}
+	示例启动文件
+		<launch>
+		   <node name="arduino" pkg="ros_arduino_python" type="arduino_node.py" output="screen">
+			  <rosparam file="$(find ros_arduino_python)/config/my_arduino_params.yaml" command="load" />
+		   </node>
+		</launch>
+	使用说明：
+		驱动程序需要Python 2.6.5或更高版本和PySerial 2.3或更高版本。
+		已经在Ubuntu Linux 10.04（Maveric）和11.10（Oneric）上测试。
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
